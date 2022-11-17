@@ -1,7 +1,7 @@
 # ProiectRC
 ## PS2 - RC + SI (Rețele de Calculatoare + Securitatea Informației)
 
-Program în limbajul C, o aplicație client-server în protocolul TCP, prin care se măsoară timpul care trece de la transmiterea unui mesaj de la client către server, adică timpul până la primirea răspunsului. Există posibilitatea trimiterii de mesaje de comandă serverului pentru a seta un delay înainte de transmitere, caz în care nu se realizează măsurătoarea. Întârzierea trebuie să fie >=0, altfel se va semnala eroare. Serverul este iterativ.
+Program în limbajul C, o aplicație client-server în protocolul TCP, prin care se măsoară timpul care trece de la transmiterea unui mesaj de la client către server, adică timpul până la primirea răspunsului. Există posibilitatea trimiterii de mesaje de comandă serverului pentru a seta un delay înainte de transmitere, caz în care nu se realizează măsurătoarea. Întârzierea trebuie să fie >=0, altfel se va semnala eroare. Serverul este concurent.
 
 ## Exemple de utilizare
 _în client_:

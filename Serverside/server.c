@@ -9,62 +9,118 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <pthread.h>
+#include <sys/time.h>
 
-#define MYPORT 7507
-#define BUFFER_SIZE 255
+#define PORT 7507
+#define BUFFER_SIZE 2048
 #define BACKLOG 10
 
-int main(void)
-{
-    int sockfd; //socket server
-    int client_fd; //socket client
-    int sin_size;
-    int yes=1;
-    
-    struct sockaddr_in my_addr;
-    struct sockaddr_in their_addr;
+typedef struct pthread_args {
+	int sockfd;
+	struct sockaddr_in client_address;
+	
+	char* message; //mesajul trimis de catre client
+	clock_t start, stop; //pentru masurarea duratei de transmitere
+	
+	float seconds;
+	float delay; //initial este setat pe 0, daca se trimite .d <durata> ca si argument, va fi modificat
+} pthread_args;
 
-    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-        perror("socket");
-        exit(1);
-    }
+void* handler(void* args) {
+	pthread_args* pthread_arg = (pthread_args*)args;
+	int sockfd = pthread_arg->sockfd;
+	struct sockaddr_in client_address = pthread_arg->client_address;
+	float seconds = pthread_arg->seconds;
+	float delay = pthread_arg->delay;
+	
+	free(args);
+	
+	//tba: send/write with the client, counting the duration of sending/receiving message
+	//and maybe signal handlers for CTRL-Z and CTRL-C to shutdown the socket without having to send a message like "stop"
+	
+	
+	close(sockfd);
+	return NULL;	
+}
 
-    if (setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR | SO_REUSEPORT, &yes, sizeof(int)) == -1) {
-        perror("setsockopt");
-        exit(1);
-    }
-
-    my_addr.sin_family = AF_INET;
-    my_addr.sin_port = htons(MYPORT);
-    my_addr.sin_addr.s_addr = INADDR_ANY;
-    memset(&(my_addr.sin_zero), '\0', 8);
-
-    if (bind(sockfd, (struct sockaddr *)&my_addr, sizeof(struct sockaddr))
-                                                                    == -1) {
-        perror("bind");
-        exit(1);
-    }
-
-    if (listen(sockfd, BACKLOG) == -1) {
-        perror("listen");
-        exit(1);
-    }
-    
-    printf("Serverul este deschis.\n");
-
-    while(1) {  
-        sin_size = sizeof(struct sockaddr_in);
-        if ((client_fd = accept(sockfd, (struct sockaddr *)&their_addr,
-                                                        &sin_size)) == -1) {
-            perror("accept");
-            continue;
-        }
-        printf("server: conexiune de la: %s\n",
-        inet_ntoa(their_addr.sin_addr));
-        char message[] = "connected";
-            if (send(client_fd, message, sizeof(message), 0) == -1)
-                perror("send");
-        close(client_fd);
-    }
-    return 0;
+int main() {
+	int sockfd, new_sockfd;
+	char buffer[BUFFER_SIZE];
+	struct sockaddr_in server_address;
+	
+	pthread_attr_t pthread_attr;
+	pthread_args* pthread_arg;
+	pthread_t thread;
+	
+	socklen_t client_len;
+	
+	//initializare adresa IPv4
+	memset(&server_address, 0, sizeof(server_address));
+    	server_address.sin_family = AF_INET;
+    	server_address.sin_port = htons(PORT);
+    	server_address.sin_addr.s_addr = INADDR_ANY;
+    	
+    	//socket
+    	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+       		perror("socket");
+        	exit(EXIT_FAILURE);
+    	}
+    	
+    	//bind
+    	if (bind(sockfd, (struct sockaddr *)&server_address, sizeof(server_address)) == -1) {
+      		perror("bind");
+      		exit(EXIT_FAILURE);
+   	}
+   	
+   	//listen
+   	if (listen(sockfd, BACKLOG) == -1) {
+        	perror("listen");
+        	exit(EXIT_FAILURE);
+    	}
+    	
+    	//vom folosi threaduri detached, la care nu mai trebuie sa dam join
+    	if (pthread_attr_init(&pthread_attr) != 0) {
+      	  	perror("pthread_attr_init");
+      		exit(EXIT_FAILURE);
+    	}
+    	
+  	if (pthread_attr_setdetachstate(&pthread_attr, PTHREAD_CREATE_DETACHED) != 0) {
+        	perror("pthread_attr_setdetachstate");
+        	exit(EXIT_FAILURE);
+    	}
+    	
+    	while(1) {
+    		pthread_arg = (pthread_args*)malloc(1*sizeof(pthread_args*));
+    		
+    		if(!pthread_arg) {
+    			perror("malloc");
+    			exit(EXIT_FAILURE);
+    		}
+    		
+    		//accept
+    		client_len = sizeof(pthread_arg->client_address);
+    		new_sockfd = accept(sockfd, (struct sockaddr*)&pthread_arg->client_address, &client_len);
+    		if(new_sockfd == -1) {
+    			perror("accept");
+    			free(pthread_arg);
+    			exit(EXIT_FAILURE);
+    		}
+    		
+    		read(new_sockfd, buffer, sizeof(buffer));
+    		
+    		pthread_arg->sockfd = new_sockfd;
+    		pthread_arg->seconds = 0;
+    		pthread_arg->delay = 0;
+    		
+    		if(pthread_create(&thread, &pthread_attr, handler, (void*)pthread_arg) != 0) {
+    			perror("pthread_create");
+    			free(pthread_arg);
+    			exit(EXIT_FAILURE);
+    		}
+    	}
+	
+	//shutdown(sockfd, SHUT_RDWR);
+	close(sockfd);
+	return 0;
 }

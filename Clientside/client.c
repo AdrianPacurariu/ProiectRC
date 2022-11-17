@@ -9,51 +9,49 @@
 #include <sys/socket.h>
 
 #define PORT 7507
-#define BUFFER_SIZE 255
+#define SERVER "localhost"
+#define BUFFER_SIZE 2048
 
 int main(int argc, char *argv[])
 {
-    int sockfd, numbytes;
-    char buf[BUFFER_SIZE];
-    struct hostent *he;
-    struct sockaddr_in their_addr;
-
-    if (argc != 2) {
-        fprintf(stderr,"utilizare: client host\n");
-        exit(1);
-    }
-
-    if ((he=gethostbyname("localhost")) == NULL) {
-        perror("gethostbyname");
-        exit(1);
-    }
-
-    if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-        perror("socket");
-        exit(1);
-    }
-
-    their_addr.sin_family = AF_INET;
-    their_addr.sin_port = htons(PORT);
-    their_addr.sin_addr = *((struct in_addr *)he->h_addr);
-    memset(&(their_addr.sin_zero), '\0', 8);
-
-    if (connect(sockfd, (struct sockaddr *)&their_addr,
-                                            sizeof(struct sockaddr)) == -1) {
-        perror("connect");
-        exit(1);
-    }
-
-    if ((numbytes=recv(sockfd, buf, sizeof(buf), 0)) == -1) {
-        perror("recv");
-        exit(1);
-    }
-
-    buf[numbytes] = '\0';
-
-    printf("Primit: %s\n",buf);
-
-    close(sockfd);
-
-    return 0;
+	int sockfd;
+	
+	struct hostent* server_host;
+	struct sockaddr_in server_address;
+	
+	char message[] = "Hello from the client!";
+	
+	if(argc>1) {
+		printf("Numar invalid de argumente.\n");
+		printf("Pentru a a va conecta la server: ./run_client\n");
+		printf("Dupa ce s-a realizat conexiunea, puteti sa trimiteti mesaje.\n");
+		printf("Sau puteti sa setati un delay la transmitere tastand: .d <durata>.\n");
+	}
+	
+	server_host = gethostbyname(SERVER);
+	
+	//initializare adresa IPv4
+	memset(&server_address, 0, sizeof(server_address));
+    	server_address.sin_family = AF_INET;
+    	server_address.sin_port = htons(PORT);
+    	memcpy(&server_address.sin_addr.s_addr, server_host->h_addr, server_host->h_length);
+    	
+    	//socket
+    	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+       		perror("socket");
+        	exit(EXIT_FAILURE);
+    	}
+    	
+    	//connect
+    	if (connect(sockfd, (struct sockaddr *)&server_address, sizeof server_address) == -1) {
+		perror("connect");
+       		exit(EXIT_FAILURE);
+	}
+	
+	printf("Conectat la server.\n");
+	
+	//tba: sending messages from the client and receiving answer from the server
+	
+	close(sockfd);
+	return 0;
 }
