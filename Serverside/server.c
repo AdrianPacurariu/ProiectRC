@@ -28,12 +28,17 @@ void* handler(void* args) {
 	int sockfd = pthread_arg->sockfd;
 	struct sockaddr_in client_address = pthread_arg->client_address;
 	char buffer[BUFFER_SIZE];
+	char message_sent[2*BUFFER_SIZE];
+	clock_t start, end, duration;
 	
 	free(args);
 	
 	bzero(buffer, BUFFER_SIZE);
+	bzero(message_sent, BUFFER_SIZE);
 	
 	while(1) {
+		start = clock();
+		
 		if((read(sockfd, &buffer, BUFFER_SIZE-1))<0) {
 			perror("read");
 			exit(EXIT_FAILURE);
@@ -49,12 +54,21 @@ void* handler(void* args) {
 			break;
 		}
 		
-		bzero(buffer, BUFFER_SIZE);
+		end = clock();
 		
-		if((write(sockfd, "Am primit mesajul tau.", 23))<0) {
+		duration = (end-start);
+		
+		sprintf(message_sent, "Durata de transmitere/receptie a mesajului \"%s\" este de %f secunde.", buffer, (float)duration/CLOCKS_PER_SEC);
+		
+				
+		bzero(buffer, sizeof(buffer));
+				
+		if((write(sockfd, message_sent, strlen(message_sent)))<0) {
 			perror("write");
 			exit(EXIT_FAILURE);
 		}
+
+		bzero(message_sent, sizeof(message_sent));
 	}
 	
 	printf("\nServer: am primit mesajul STOP din partea clientului (thread id=%d), acesta va fi deconectat de la server.\n", gettid());

@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
 	struct sockaddr_in server_address;
 	
 	char message_sent[BUFFER_SIZE];
-	char message_received[BUFFER_SIZE];
+	char message_received[2*BUFFER_SIZE];
 	
 	if(argc>1) {
 		printf("Numar invalid de argumente.\n");
@@ -68,7 +68,7 @@ int main(int argc, char *argv[])
 		bzero(message_received, sizeof(message_received));
 		
 		//read
-		if ((read(sockfd, &message_received, BUFFER_SIZE-1))<0)
+		if ((read(sockfd, &message_received, (2*BUFFER_SIZE)-1))<0)
 		{
 			perror("read");
 			exit(EXIT_FAILURE);
