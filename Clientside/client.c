@@ -55,8 +55,12 @@ int main(int argc, char *argv[])
 	//loop pentru a citi mesajele de la server
 	while(1) {
 		bzero(message_sent, sizeof(message_sent));
-		printf("Introduceti mesajul: ");
-		fgets(message_sent, BUFFER_SIZE-1, stdin);
+		
+		do{
+			printf("Introduceti mesajul: ");
+			fgets(message_sent, BUFFER_SIZE-1, stdin);
+		}while(*message_sent == '\n');
+		
 		message_sent[strcspn(message_sent, "\n")]=0;
 		
 		//send

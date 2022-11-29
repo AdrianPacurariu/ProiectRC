@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <ctype.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -38,7 +39,7 @@ void* handler(void* args) {
 	
 	while(1) {
 		start = clock();
-		
+			
 		if((read(sockfd, &buffer, BUFFER_SIZE-1))<0) {
 			perror("read");
 			exit(EXIT_FAILURE);
@@ -46,34 +47,65 @@ void* handler(void* args) {
 		
 		printf("Mesajul primit din partea clientului (thread id=%d): %s\n", gettid(), buffer);
 		
-		if(!strcmp(buffer, "stop") || !strcmp(buffer, "STOP")) {
-			if((write(sockfd, "Conexiunea a fost inchisa.", 27))<0) {
+		char* copied_message = strdup(buffer);
+		char* p;		
+		
+		p = strtok(copied_message, " ");
+		if(!strcmp(p, ".d"))
+		{
+			p=strtok(NULL, " ");
+			if(p) {
+				int val = atoi(p);
+				if(val < 0) {
+					if((write(sockfd, "Eroare: delay-ul nu poate sa fie negativ.", 42))<0)
+					{
+						perror("write");
+						exit(EXIT_FAILURE);
+							
+					}
+				}	
+				else { 
+					//tba: add delay to the message
+				}		
+			}
+			else {
+				if((write(sockfd, "Eroare: nu ati introdus durata delay-ului.\nPentru a seta delay: .d <durata>", 76))<0)
+				{
+					perror("write");
+					exit(EXIT_FAILURE);
+				}
+			}
+			bzero(buffer, sizeof(buffer));
+		}
+		
+		else {
+			if(!strcmp(buffer, "stop") || !strcmp(buffer, "STOP")) {
+				if((write(sockfd, "Conexiunea a fost inchisa.", 27))<0) {
+					perror("write");
+					exit(EXIT_FAILURE);
+				}
+			printf("\nServer: am primit mesajul STOP din partea clientului (thread id=%d), acesta va fi deconectat de la server.\n", gettid());
+			close(sockfd);
+			return NULL;	
+			}
+		
+			end = clock();
+		
+			duration = (end-start);
+		
+			sprintf(message_sent, "Durata de transmitere/receptie a mesajului \"%s\" este de %f secunde.", buffer, (float)duration/CLOCKS_PER_SEC);
+			
+			bzero(buffer, sizeof(buffer));
+			
+			if((write(sockfd, message_sent, strlen(message_sent)))<0) {
 				perror("write");
 				exit(EXIT_FAILURE);
 			}
-			break;
+			
+			bzero(message_sent, sizeof(message_sent));
 		}
-		
-		end = clock();
-		
-		duration = (end-start);
-		
-		sprintf(message_sent, "Durata de transmitere/receptie a mesajului \"%s\" este de %f secunde.", buffer, (float)duration/CLOCKS_PER_SEC);
-		
-				
-		bzero(buffer, sizeof(buffer));
-				
-		if((write(sockfd, message_sent, strlen(message_sent)))<0) {
-			perror("write");
-			exit(EXIT_FAILURE);
-		}
-
-		bzero(message_sent, sizeof(message_sent));
+		free(copied_message);
 	}
-	
-	printf("\nServer: am primit mesajul STOP din partea clientului (thread id=%d), acesta va fi deconectat de la server.\n", gettid());
-	close(sockfd);
-	return NULL;	
 }
 
 int main() {
