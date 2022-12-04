@@ -125,9 +125,10 @@ void* handler(void* args) {
 			
 			if(!set_delay) {
 				end = clock();
+				duration=(((double)(end-start))/CLOCKS_PER_SEC);
 		
 				printf("Delay actual: %d secunde.\n", delay_time);
-				sprintf(message_sent, "Durata de transmitere/receptie a mesajului \"%s\" este de %f secunde.", buffer, ((double)(end - start))/CLOCKS_PER_SEC);
+				sprintf(message_sent, "Durata de transmitere/receptie a mesajului \"%s\" este de %f secunde.", buffer, duration);
 			
 				bzero(buffer, sizeof(buffer));
 			
@@ -142,8 +143,10 @@ void* handler(void* args) {
 				printf("Clientul a primit mesajul cu un delay de %d secunde.\n", delay_time);
 				sleep(delay_time);
 				end=clock();
+				duration=(((double)(end-start))/CLOCKS_PER_SEC);
+				duration+=(double)delay_time;
 						
-				sprintf(message_sent, "Durata de transmitere/receptie a mesajului \"%s\" este de %f secunde.", buffer, (((double) (end - start)) / CLOCKS_PER_SEC)+delay_time);
+				sprintf(message_sent, "Durata de transmitere/receptie a mesajului \"%s\" este de %f secunde.", buffer, duration);
 						
 				set_delay = 0;
 				delay_time = 0;
