@@ -24,20 +24,24 @@ typedef struct pthread_args {
 	struct sockaddr_in client_address;
 } pthread_args;
 
+int set_delay;
+int delay_time;
+
 void* handler(void* args) {
 	pthread_args* pthread_arg = (pthread_args*)args;
 	int sockfd = pthread_arg->sockfd;
 	struct sockaddr_in client_address = pthread_arg->client_address;
 	char buffer[BUFFER_SIZE];
 	char message_sent[2*BUFFER_SIZE];
-	clock_t start, end, duration;
+	clock_t start, end;
+	double duration;
 	
 	free(args);
 	
 	bzero(buffer, BUFFER_SIZE);
 	bzero(message_sent, BUFFER_SIZE);
 	
-	while(1) {
+	while(1) {	
 		start = clock();
 			
 		if((read(sockfd, &buffer, BUFFER_SIZE-1))<0) {
@@ -57,6 +61,7 @@ void* handler(void* args) {
 			if(p) {
 				int val = atoi(p);
 				if(val < 0) {
+					printf("Clientul a incercat sa seteze un delay negativ.\n");
 					if((write(sockfd, "Eroare: delay-ul nu poate sa fie negativ.", 42))<0)
 					{
 						perror("write");
@@ -65,10 +70,39 @@ void* handler(void* args) {
 					}
 				}	
 				else { 
-					//tba: add delay to the message
+					if(!set_delay) {
+						set_delay = 1;
+						delay_time = val;
+						
+						printf("Clientul a setat un delay pentru urmatorul mesaj.\nDelay setat: %d secunde.\n", delay_time);
+						sprintf(message_sent, "Am setat un delay de %d secunde pentru urmatorul mesaj.", delay_time);
+				
+						bzero(buffer, sizeof(buffer));
+			
+						if((write(sockfd, message_sent, strlen(message_sent)))<0) {
+							perror("write");
+							exit(EXIT_FAILURE);
+						}
+			
+						bzero(message_sent, sizeof(message_sent));
+					}
+					else {
+						printf("Delay actual: %d secunde.\n", delay_time);
+						sprintf(message_sent, "Ati setat anterior un delay de %d secunde pentru urmatorul mesaj.", delay_time);
+
+						bzero(buffer, sizeof(buffer));
+						
+						if((write(sockfd, message_sent, strlen(message_sent)))<0) {
+							perror("write");
+							exit(EXIT_FAILURE);
+						}
+						
+						bzero(message_sent, sizeof(message_sent));
+					}
 				}		
 			}
 			else {
+				printf("Clientul nu a introdus durata delay-ului.\n");
 				if((write(sockfd, "Eroare: nu ati introdus durata delay-ului.\nPentru a seta delay: .d <durata>", 76))<0)
 				{
 					perror("write");
@@ -88,21 +122,41 @@ void* handler(void* args) {
 			close(sockfd);
 			return NULL;	
 			}
-		
-			end = clock();
-		
-			duration = (end-start);
-		
-			sprintf(message_sent, "Durata de transmitere/receptie a mesajului \"%s\" este de %f secunde.", buffer, (float)duration/CLOCKS_PER_SEC);
 			
-			bzero(buffer, sizeof(buffer));
+			if(!set_delay) {
+				end = clock();
+		
+				printf("Delay actual: %d secunde.\n", delay_time);
+				sprintf(message_sent, "Durata de transmitere/receptie a mesajului \"%s\" este de %f secunde.", buffer, ((double)(end - start))/CLOCKS_PER_SEC);
 			
-			if((write(sockfd, message_sent, strlen(message_sent)))<0) {
-				perror("write");
-				exit(EXIT_FAILURE);
+				bzero(buffer, sizeof(buffer));
+			
+				if((write(sockfd, message_sent, strlen(message_sent)))<0) {
+					perror("write");
+					exit(EXIT_FAILURE);
+				}
+				
+				bzero(message_sent, sizeof(message_sent));
 			}
+			else {
+				printf("Clientul a primit mesajul cu un delay de %d secunde.\n", delay_time);
+				sleep(delay_time);
+				end=clock();
+						
+				sprintf(message_sent, "Durata de transmitere/receptie a mesajului \"%s\" este de %f secunde.", buffer, (((double) (end - start)) / CLOCKS_PER_SEC)+delay_time);
+						
+				set_delay = 0;
+				delay_time = 0;
+						
+				bzero(buffer, sizeof(buffer));
 			
-			bzero(message_sent, sizeof(message_sent));
+				if((write(sockfd, message_sent, strlen(message_sent)))<0) {
+					perror("write");
+					exit(EXIT_FAILURE);
+				}
+			
+				bzero(message_sent, sizeof(message_sent));
+			}
 		}
 		free(copied_message);
 	}
